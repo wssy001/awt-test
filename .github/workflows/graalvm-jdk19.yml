@@ -4,7 +4,7 @@ on:
     types: [published]
 jobs:
   build:
-    name: fallout76-assistant on ${{ matrix.arch }}
+    name: awt-test on ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -27,49 +27,18 @@ jobs:
 
       - name: 构建 Native Image
         run: |
-          cd /home/runner/work/fallout76-public/fallout76-public
-          mvn clean install -U -Dmaven.test.skip=true
-          cd base-service-provider
+          cd /home/runner/work/awt-test/awt-test
           mvn native:compile -Pnative -Dmaven.test.skip=true
 
       - name: 打包
         run: |
-          cd /home/runner/work/fallout76-public/fallout76-public/base-service-provider
-          mkdir -p fallout76-assistant/config
-          cd fallout76-assistant
-          cp ../src/main/resources/application.yml config/
-          cp ../target/fallout76-assistant-robot ./
-          echo '#!/bin/bash' > run.sh
-          echo './fallout76-assistant-robot -Djavax.xml.accessExternalDTD=all' >> run.sh
-          chmod +x run.sh
-          tar -zcvf fallout76-assistant.tar.gz ./*
-
-      - name: 获取当前 Tag
-        id: get_tag
-        shell: bash
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          cd /home/runner/work/awt-test/awt-test/target
+          tar -zcvf awt-test.tar.gz awt-test
 
       - name: 上传 Native Image
         uses: shogo82148/actions-upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_name: fallout76-assistant-${{ steps.get_tag.outputs.tag }}-linux-amd64.tar.gz
-          asset_path: /home/runner/work/fallout76-public/fallout76-public/base-service-provider/fallout76-assistant/*.tar.gz
+          asset_name: awt-test-graalvm-jdk19.tar.gz
+          asset_path: /home/runner/work/awt-test/awt-test/target/*.tar.gz
           asset_content_type: application/x-compressed-tar
-
-      - name: 登录 Docker
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: 构建并推送 Docker Image
-        uses: docker/build-push-action@v4
-        with:
-          context: /home/runner/work/fallout76-public/fallout76-public/base-service-provider/fallout76-assistant
-          file: /home/runner/work/fallout76-public/fallout76-public/docker/Dockerfile
-          push: true
-          tags: |
-            wssy001/fallout76-public
-            wssy001/fallout76-public:${{ steps.get_tag.outputs.tag }}
-            wssy001/fallout76-public:amd64
